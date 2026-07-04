@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 
 // Allow requests from specified origins (comma-separated in env) or default local server
 const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
     : ['http://localhost:5173'];
 
 app.use(cors({
@@ -18,9 +18,13 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps, Postman, or curl)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        // Normalize origin by stripping trailing slash (though browsers usually don't send one)
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        
+        if (allowedOrigins.includes(normalizedOrigin) || allowedOrigins.includes('*')) {
             callback(null, true);
         } else {
+            console.error(`[CORS Error] Origin '${origin}' is not allowed. Allowed origins configured in FRONTEND_URL:`, allowedOrigins);
             callback(new Error(`Origin ${origin} not allowed by CORS`));
         }
     },
