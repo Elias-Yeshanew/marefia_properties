@@ -1,19 +1,36 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config(); // Ensure environment variables are loaded here too
 
-// Database connection parameters from .env
-const DB_NAME = process.env.DB_NAME;
-const DB_USER = process.env.DB_USER;
-const DB_PASSWORD = process.env.DB_PASSWORD;
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_PORT = process.env.DB_PORT || 5432; // Default PostgreSQL port
+// Check if a database connection URL is provided (e.g. Neon, Heroku, Render)
+const dbUrl = process.env.DATABASE_URL || process.env.DB_URL;
+let sequelize;
 
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
-    host: DB_HOST,
-    port: DB_PORT,
-    dialect: 'postgres',
-    logging: false, // Set to true to see SQL queries in console
-});
+if (dbUrl) {
+    sequelize = new Sequelize(dbUrl, {
+        dialect: 'postgres',
+        logging: false, // Set to true to see SQL queries in console
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false, // Needed for Neon DB and cloud Postgres hosts
+            },
+        },
+    });
+} else {
+    // Database connection parameters from .env (Local Development)
+    const DB_NAME = process.env.DB_NAME;
+    const DB_USER = process.env.DB_USER;
+    const DB_PASSWORD = process.env.DB_PASSWORD;
+    const DB_HOST = process.env.DB_HOST || 'localhost';
+    const DB_PORT = process.env.DB_PORT || 5432; // Default PostgreSQL port
+
+    sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
+        host: DB_HOST,
+        port: DB_PORT,
+        dialect: 'postgres',
+        logging: false,
+    });
+}
 
 const connectDB = async () => {
     try {
