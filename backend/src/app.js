@@ -8,9 +8,22 @@ const listingRoutes = require('./routes/listingRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Allow requests from the Vite frontend dev server
+// Allow requests from specified origins (comma-separated in env) or default local server
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:5173'];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, Postman, or curl)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+    },
     credentials: true,
 }));
 
