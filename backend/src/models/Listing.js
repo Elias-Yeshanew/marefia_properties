@@ -28,6 +28,10 @@ const Listing = sequelize.define('Listing', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
     },
+    locationAddressPublic: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     images: {
         type: DataTypes.JSONB,
         allowNull: true,

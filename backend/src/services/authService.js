@@ -14,7 +14,7 @@ const authService = {
    * @returns {object} new user object
    */
 
-    registerUser: async (email, password, fullName, role) => {
+    registerUser: async (email, password, fullName, role, phoneNumber, address) => {
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             throw new Error('User with this email already exists.');
@@ -27,6 +27,8 @@ const authService = {
             password: hashedPassword,
             fullName,
             role,
+            phoneNumber,
+            address,
         });
 
         return newUser;

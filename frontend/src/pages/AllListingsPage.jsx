@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../services/api';
+import ListingCard from '../components/ListingCard';
+import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 
 function AllListingsPage() {
     const [listings, setListings] = useState([]);
@@ -35,8 +37,8 @@ function AllListingsPage() {
         if (searchQuery.trim() !== '') {
             const query = searchQuery.toLowerCase();
             temp = temp.filter(item =>
-                item.title.toLowerCase().includes(query) ||
-                item.locationAddressPublic.toLowerCase().includes(query)
+                (item.title || '').toLowerCase().includes(query) ||
+                (item.locationAddressPublic || '').toLowerCase().includes(query)
             );
         }
         if (filterType !== 'all') temp = temp.filter(item => item.type === filterType);
@@ -47,17 +49,6 @@ function AllListingsPage() {
         else if (filterPrice === 'ultra') temp = temp.filter(item => parseFloat(item.price) > 5000000);
         return temp;
     }, [searchQuery, filterType, filterCategory, filterPrice, listings]);
-
-    const getListingImageUrl = (listing) => {
-        if (listing.images && listing.images.length > 0) {
-            const firstImage = listing.images[0];
-            if (typeof firstImage === 'string') return firstImage;
-        }
-        if (listing.type === 'house') {
-            return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
-        }
-        return 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80';
-    };
 
     const hasActiveFilters = filterType !== 'all' || filterCategory !== 'all' || filterPrice !== 'all' || searchQuery !== '';
 
@@ -98,51 +89,41 @@ function AllListingsPage() {
                         border: '1px solid rgba(201,168,76,0.18)',
                         boxShadow: 'var(--shadow-deep)',
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                            <h3 style={{ fontSize: '1.25rem', color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', margin: 0 }}>
-                                Refine Selection
-                            </h3>
-                            {hasActiveFilters && (
-                                <button
-                                    onClick={clearFilters}
-                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', padding: 0 }}
-                                >
-                                    Reset
-                                </button>
-                            )}
-                        </div>
+                        <h4 style={{ color: 'var(--white)', margin: '0 0 20px 0', fontSize: '1.1rem' }}>
+                            Filter Showroom
+                        </h4>
 
-                        <div className="form-group" style={{ marginBottom: '20px' }}>
+                        <div className="form-group" style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                                Search Keywords
+                                Keyword Search
                             </label>
                             <input
                                 type="text"
-                                placeholder="City, neighborhood, title..."
+                                placeholder="e.g. villa, Porsche, London..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 14px', width: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--white)', boxSizing: 'border-box' }}
+                                style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 14px', width: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--white)' }}
                             />
                         </div>
 
-                        <div className="form-group" style={{ marginBottom: '20px' }}>
+                        <div className="form-group" style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                                Asset Type
+                                Asset Category
                             </label>
                             <select
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value)}
                                 style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 14px', width: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--white)' }}
                             >
-                                <option value="all">All Assets</option>
+                                <option value="all">All Categories</option>
                                 <option value="house">Real Estate</option>
                                 <option value="car">Automotive</option>
                             </select>
                         </div>
 
-                        <div className="form-group" style={{ marginBottom: '20px' }}>
+                        <div className="form-group" style={{ marginBottom: '24px' }}>
                             <label style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                                Category
+                                Agreement Type
                             </label>
                             <select
                                 value={filterCategory}
@@ -187,56 +168,26 @@ function AllListingsPage() {
                 {/* ── LISTINGS GRID ── */}
                 <div>
                     {loading ? (
-                        <div className="loading-screen" style={{ minHeight: '300px' }}>
-                            <div className="spinner"></div>
-                            <p className="loading-text">Loading catalogue...</p>
-                        </div>
+                        <LoadingScreen text="Loading catalogue..." />
                     ) : error ? (
                         <p className="alert alert-danger">{error}</p>
                     ) : filteredListings.length === 0 ? (
-                        <div className="empty-state" style={{ padding: '60px 24px' }}>
-                            <div className="empty-icon">🔍</div>
-                            <h3>No Matching Listings</h3>
-                            <p>No listings matched your criteria. Try adjusting your filters.</p>
-                            {hasActiveFilters && (
-                                <button className="btn-ghost" onClick={clearFilters} style={{ marginTop: '20px' }}>
-                                    Clear All Filters
-                                </button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon="🔍"
+                            title="No Matching Listings"
+                            description="No listings matched your criteria. Try adjusting your filters."
+                            action={
+                                hasActiveFilters && (
+                                    <button className="btn-ghost" onClick={clearFilters} style={{ marginTop: '20px' }}>
+                                        Clear All Filters
+                                    </button>
+                                )
+                            }
+                        />
                     ) : (
                         <div className="listings-grid" style={{ marginTop: 0 }}>
                             {filteredListings.map((listing) => (
-                                <Link key={listing.id} to={`/listing/${listing.id}`} className="listing-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <img
-                                        src={getListingImageUrl(listing)}
-                                        alt={listing.title}
-                                        className="listing-image"
-                                        onError={(e) => {
-                                            e.target.src = listing.type === 'house'
-                                                ? 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80'
-                                                : 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80';
-                                        }}
-                                    />
-                                    <div className="listing-card-body">
-                                        <div className="listing-card-tag">
-                                            {listing.type === 'house' ? '🏠 Property' : '🚗 Vehicle'}
-                                            &nbsp;·&nbsp;
-                                            {listing.category === 'for_sale' ? 'For Sale' : 'For Rent'}
-                                        </div>
-                                        <h3>{listing.title}</h3>
-                                        <div className="listing-price">
-                                            ${parseFloat(listing.price).toLocaleString()}
-                                            {listing.category === 'for_rent' && (
-                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/mo</span>
-                                            )}
-                                        </div>
-                                        <div className="listing-meta">
-                                            <span>📍 {listing.locationAddressPublic}</span>
-                                            <span>👤 {listing.seller ? listing.seller.fullName : 'Marefia Representative'}</span>
-                                        </div>
-                                    </div>
-                                </Link>
+                                <ListingCard key={listing.id} listing={listing} />
                             ))}
                         </div>
                     )}

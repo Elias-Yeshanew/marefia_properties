@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import AuthContext from '../context/AuthContext';
 
 function CreateListingPage() {
+    const { user } = useContext(AuthContext);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -58,7 +60,13 @@ function CreateListingPage() {
             });
             setSelectedFiles([]);
             setPreviewImages([]);
-            setTimeout(() => navigate('/seller/my-listings'), 2000);
+            setTimeout(() => {
+                if (user?.role === 'admin' || user?.role === 'broker') {
+                    navigate('/admin/listings');
+                } else {
+                    navigate('/seller/my-listings');
+                }
+            }, 2000);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to create listing.');
             console.error('Create listing error:', err);

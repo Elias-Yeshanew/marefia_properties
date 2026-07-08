@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import Hero from '../components/Hero';
+import ListingCard from '../components/ListingCard';
+import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 
 function HomePage() {
     const [listings, setListings] = useState([]);
@@ -36,8 +40,8 @@ function HomePage() {
         if (searchQuery.trim() !== '') {
             const query = searchQuery.toLowerCase();
             temp = temp.filter(item =>
-                item.title.toLowerCase().includes(query) ||
-                item.locationAddressPublic.toLowerCase().includes(query)
+                (item.title || '').toLowerCase().includes(query) ||
+                (item.locationAddressPublic || '').toLowerCase().includes(query)
             );
         }
         if (filterType !== 'all') temp = temp.filter(item => item.type === filterType);
@@ -50,52 +54,10 @@ function HomePage() {
         return temp;
     }, [searchQuery, filterType, filterCategory, filterPrice, listings]);
 
-    // Helpers to resolve listing image URLs
-    const getListingImageUrl = (listing) => {
-        if (listing.images && listing.images.length > 0) {
-            // Verify if it is an array and the first element is a string
-            const firstImage = listing.images[0];
-            if (typeof firstImage === 'string') {
-                return firstImage;
-            }
-        }
-        
-        // Fallback static high quality premium images based on type
-        if (listing.type === 'house') {
-            return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
-        } else {
-            return 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80';
-        }
-    };
-
     return (
         <div style={{ margin: '0 -48px', position: 'relative' }}>
             {/* ── HERO SECTION ── */}
-            <header className="hero-banner" style={{
-                height: '70vh',
-                minHeight: '550px',
-                backgroundImage: 'linear-gradient(to bottom, rgba(4,12,36,0.3) 0%, rgba(4,12,36,0.95) 100%), url("https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=80")',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '0 24px',
-                textAlign: 'center',
-                position: 'relative'
-            }}>
-                <div style={{ maxWidth: '800px', width: '100%', zIndex: 2 }}>
-                    <span className="section-label" style={{ color: 'var(--gold)', letterSpacing: '0.3em' }}>Welcome to Marefia Properties</span>
-                    <h1 style={{ color: 'var(--white)', margin: '16px 0 24px 0', fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontStyle: 'italic' }}>
-                        Curated Heritage. Infinite Possibilities.
-                    </h1>
-                    <p style={{ color: 'var(--text-light)', fontSize: 'clamp(0.95rem, 1.8vw, 1.25rem)', maxWidth: '620px', margin: '0 auto 40px auto', fontWeight: 3 }}>
-                        Acquire and lease the world’s most coveted residences and premium automotive assets with absolute security and discretion.
-                    </p>
-                    <a href="#showroom" className="btn-gold" style={{ display: 'inline-block', textDecoration: 'none', marginTop: '10px' }}>Explore Showroom</a>
-                </div>
-            </header>
+            <Hero exploreAnchor="#showroom" />
 
             {/* ── MAIN CONTENT CONTAINER ── */}
             <div style={{ padding: '80px 48px 0 48px', maxWidth: '1376px', margin: '0 auto' }}>
@@ -206,49 +168,19 @@ function HomePage() {
 
                     {/* ── LISTINGS GRID ── */}
                     {loading ? (
-                        <div className="loading-screen" style={{ minHeight: '250px' }}>
-                            <div className="spinner"></div>
-                            <p className="loading-text">Loading showroom...</p>
-                        </div>
+                        <LoadingScreen text="Loading showroom..." />
                     ) : error ? (
                         <p className="alert alert-danger">{error}</p>
                     ) : filteredListings.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-icon">🔍</div>
-                            <h3>No Matching Listings</h3>
-                            <p>No listings matched your criteria. Try adjusting your query or filters.</p>
-                        </div>
+                        <EmptyState
+                            icon="🔍"
+                            title="No Matching Listings"
+                            description="No listings matched your criteria. Try adjusting your query or filters."
+                        />
                     ) : (
                         <div className="listings-grid">
                             {filteredListings.map((listing) => (
-                                <Link key={listing.id} to={`/listing/${listing.id}`} className="listing-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <img
-                                        src={getListingImageUrl(listing)}
-                                        alt={listing.title}
-                                        className="listing-image"
-                                        onError={(e) => {
-                                            e.target.src = listing.type === 'house'
-                                                ? 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80'
-                                                : 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80';
-                                        }}
-                                    />
-                                    <div className="listing-card-body">
-                                        <div className="listing-card-tag">
-                                            {listing.type === 'house' ? '🏠 Property' : '🚗 Vehicle'}
-                                            &nbsp;·&nbsp;
-                                            {listing.category === 'for_sale' ? 'For Sale' : 'For Rent'}
-                                        </div>
-                                        <h3>{listing.title}</h3>
-                                        <div className="listing-price">
-                                            ${parseFloat(listing.price).toLocaleString()}
-                                            {listing.category === 'for_rent' && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/mo</span>}
-                                        </div>
-                                        <div className="listing-meta">
-                                            <span>📍 {listing.locationAddressPublic}</span>
-                                            <span>👤 {listing.seller ? listing.seller.fullName : 'Marefia Representative'}</span>
-                                        </div>
-                                    </div>
-                                </Link>
+                                <ListingCard key={listing.id} listing={listing} />
                             ))}
                         </div>
                     )}

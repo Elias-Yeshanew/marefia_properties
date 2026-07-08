@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -8,9 +8,12 @@ import SellerListingsPage from './pages/SellerListingsPage';
 import AdminListingsPage from './pages/AdminListingsPage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import AllListingsPage from './pages/AllListingsPage';
+import EditListingPage from './pages/EditListingPage';
 import FavoritesPage from './pages/FavoritesPage';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import AuthContext from './context/AuthContext';
 import './App.css';
 
@@ -46,39 +49,7 @@ function App() {
       <div className="App">
 
         {/* ── Navbar ── */}
-        <nav className="navbar">
-          <Link to="/" className="nav-brand">
-            Marefia<span className="brand-accent">&nbsp;Properties</span>
-          </Link>
-
-          <div className="nav-links">
-            {!user ? (
-              <>
-                <Link to="/" className="nav-item">Home</Link>
-                <Link to="/listings" className="nav-item">Browse All</Link>
-                <Link to="/login" className="nav-item">Sign In</Link>
-                <Link to="/register" className="nav-item" style={{ color: 'var(--gold)' }}>Register</Link>
-              </>
-            ) : (
-              <>
-                <Link to="/" className="nav-item">Home</Link>
-                <Link to="/listings" className="nav-item">Browse All</Link>
-                <Link to="/favorites" className="nav-item">My Favorites</Link>
-                {user.role === 'seller' && (
-                  <>
-                    <Link to="/seller/create-listing" className="nav-item">+ New Listing</Link>
-                    <Link to="/seller/my-listings" className="nav-item">My Listings</Link>
-                  </>
-                )}
-                {(user.role === 'admin' || user.role === 'broker') && (
-                  <Link to="/admin/listings" className="nav-item">Dashboard</Link>
-                )}
-                <span className="nav-welcome">Welcome, <strong>{user.email?.split('@')[0]}</strong></span>
-                <button onClick={logout} className="nav-button">Sign Out</button>
-              </>
-            )}
-          </div>
-        </nav>
+        <Navbar />
 
         {/* ── Routes ── */}
         <div className="container">
@@ -96,17 +67,20 @@ function App() {
             <Route path="/seller/my-listings" element={
               <PrivateRoute requiredRole="seller"><SellerListingsPage /></PrivateRoute>
             } />
+            <Route path="/listings/edit/:id" element={
+              <PrivateRoute><EditListingPage /></PrivateRoute>
+            } />
             <Route path="/admin/listings" element={
               <AdminRoute><AdminListingsPage /></AdminRoute>
+            } />
+            <Route path="/admin/create-listing" element={
+              <AdminRoute><CreateListingPage /></AdminRoute>
             } />
           </Routes>
         </div>
 
         {/* ── Footer ── */}
-        <footer className="site-footer">
-          <span className="footer-brand">Marefia Properties</span>
-          <span>© {new Date().getFullYear()} All rights reserved.</span>
-        </footer>
+        <Footer />
 
       </div>
     </AuthContext.Provider>

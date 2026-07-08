@@ -12,8 +12,8 @@ const listingService = {
        */
     createListing: async (listingData, sellerId, imageFiles = []) => {
         const seller = await User.findByPk(sellerId);
-        if (!seller || seller.role !== 'seller') {
-            throw new Error('Only registered sellers can create listings.');
+        if (!seller || (seller.role !== 'seller' && seller.role !== 'admin' && seller.role !== 'broker')) {
+            throw new Error('Only registered sellers, brokers, or admins can create listings.');
         }
 
         const imageUrls = [];
@@ -28,11 +28,13 @@ const listingService = {
             }
         }
 
+        const status = (seller.role === 'admin' || seller.role === 'broker') ? 'approved' : 'pending';
+
         const newListing = await Listing.create({
             ...listingData,
             sellerId: sellerId,
             images: imageUrls, // Store Cloudinary URLs
-            status: 'pending',
+            status: status,
         });
         return newListing;
     },
@@ -87,10 +89,8 @@ const listingService = {
      * @param {string} id - Listing ID.
      * @returns {object} The listing object.
      */
-    getApprovedListingById: async (id, userId = null) => {
-        const listing = await Listing.findOne({
-            where: { id: id, status: 'approved' },
-            attributes: { exclude: ['sellerId', 'updatedAt'] }, // keep createdAt so we show Listed On date
+    getApprovedListingById: async (id, userId = null, userRole = null) => {
+        const listing = await Listing.findByPk(id, {
             include: [
                 {
                     model: User,
@@ -100,7 +100,14 @@ const listingService = {
             ],
         });
         if (!listing) {
-            throw new Error('Listing not found or not approved.');
+            throw new Error('Listing not found.');
+        }
+
+        // If listing is not approved, only the owner or an admin/broker can view it
+        if (listing.status !== 'approved') {
+            if (!userId || (listing.sellerId !== userId && userRole !== 'admin' && userRole !== 'broker')) {
+                throw new Error('Listing not found or not approved.');
+            }
         }
 
         const plainListing = listing.toJSON();
@@ -253,6 +260,49 @@ const listingService = {
             ],
             order: [['createdAt', 'DESC']]
         });
+    },
+
+    updateListing: async (id, userId, role, listingData, imageFiles = [], retainedImages = []) => {
+        const listing = await Listing.findByPk(id);
+        if (!listing) {
+            throw new Error('Listing not found.');
+        }
+
+        // Authorize: user must be the owner of the listing or an admin
+        if (role !== 'admin' && listing.sellerId !== userId) {
+            throw new Error('You are not authorized to update this listing.');
+        }
+
+        // Upload any new images to Cloudinary
+        const newImageUrls = [];
+        if (imageFiles && imageFiles.length > 0) {
+            for (const file of imageFiles) {
+                const result = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
+                    folder: 'broker-website-listings',
+                });
+                newImageUrls.push(result.secure_url);
+            }
+        }
+
+        // Combine retained images with new uploads
+        const finalImages = [...retainedImages, ...newImageUrls];
+
+        // Update fields
+        listing.title = listingData.title !== undefined ? listingData.title : listing.title;
+        listing.description = listingData.description !== undefined ? listingData.description : listing.description;
+        listing.type = listingData.type !== undefined ? listingData.type : listing.type;
+        listing.category = listingData.category !== undefined ? listingData.category : listing.category;
+        listing.price = listingData.price !== undefined ? parseFloat(listingData.price) : listing.price;
+        listing.locationAddressPublic = listingData.locationAddressPublic !== undefined ? listingData.locationAddressPublic : listing.locationAddressPublic;
+        listing.images = finalImages;
+
+        // If the editor is a seller, the listing must be re-approved
+        if (role !== 'admin') {
+            listing.status = 'pending';
+        }
+
+        await listing.save();
+        return listing;
     },
 };
 

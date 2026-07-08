@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import ListingCard from '../components/ListingCard';
+import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 
 function SellerListingsPage() {
     const [listings, setListings] = useState([]);
@@ -23,12 +26,7 @@ function SellerListingsPage() {
         fetchMyListings();
     }, []);
 
-    if (loading) return (
-        <div className="loading-screen">
-            <div className="spinner"></div>
-            <p className="loading-text">Loading Portfolio</p>
-        </div>
-    );
+    if (loading) return <LoadingScreen text="Loading Portfolio" />;
 
     if (error) return <p className="alert alert-danger">{error}</p>;
 
@@ -42,52 +40,50 @@ function SellerListingsPage() {
             </div>
 
             {listings.length === 0 ? (
-                <div className="empty-state">
-                    <div className="empty-icon">📋</div>
-                    <h3>No Listings Found</h3>
-                    <p>You haven't added any properties to your portfolio yet.</p>
-                    <Link to="/seller/create-listing" className="btn-gold" style={{ marginTop: '20px' }}>
-                        Create First Listing
-                    </Link>
-                </div>
+                <EmptyState
+                    icon="📋"
+                    title="No Listings Found"
+                    description="You haven't added any properties to your portfolio yet."
+                    action={
+                        <Link to="/seller/create-listing" className="btn-gold" style={{ marginTop: '20px' }}>
+                            Create First Listing
+                        </Link>
+                    }
+                />
             ) : (
                 <div className="listings-grid">
                     {listings.map((listing) => (
-                        <div key={listing.id} className="listing-card">
-                            {listing.images && listing.images.length > 0 ? (
-                                <img
-                                    src={listing.images[0]}
-                                    alt={listing.title}
-                                    className="listing-image"
-                                />
-                            ) : (
-                                <div className="listing-image-placeholder">
-                                    {listing.type === 'house' ? '🏠' : '🚗'}
-                                </div>
-                            )}
-                            <div className="listing-card-body">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                    <span className={`status-badge status-${listing.status.toLowerCase()}`}>
-                                        {listing.status}
-                                    </span>
-                                    <span className="listing-card-tag" style={{ margin: 0 }}>
-                                        {listing.type === 'house' ? '🏠' : '🚗'}
-                                    </span>
-                                </div>
-                                
-                                <h3>
-                                    <Link to={`/listing/${listing.id}`}>{listing.title}</Link>
-                                </h3>
-                                
-                                <div className="listing-price" style={{ fontSize: '1.2rem' }}>
-                                    ${parseFloat(listing.price).toLocaleString()}
-                                </div>
-                                
-                                <div className="listing-meta">
-                                    <span>📍 {listing.locationAddressPublic}</span>
-                                    <span>📅 {new Date(listing.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            </div>
+                        <div key={listing.id} style={{ position: 'relative' }}>
+                            <ListingCard listing={listing} showStatus={true} />
+                            <Link
+                                to={`/listings/edit/${listing.id}`}
+                                style={{
+                                    display: 'block',
+                                    textAlign: 'center',
+                                    marginTop: '8px',
+                                    padding: '9px 0',
+                                    background: 'rgba(201,168,76,0.08)',
+                                    border: '1px solid rgba(201,168,76,0.25)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--gold)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    letterSpacing: '0.1em',
+                                    textTransform: 'uppercase',
+                                    textDecoration: 'none',
+                                    transition: 'var(--transition)',
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(201,168,76,0.18)';
+                                    e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(201,168,76,0.08)';
+                                    e.currentTarget.style.borderColor = 'rgba(201,168,76,0.25)';
+                                }}
+                            >
+                                ✏️ Edit Listing
+                            </Link>
                         </div>
                     ))}
                 </div>

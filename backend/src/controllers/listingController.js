@@ -11,8 +11,8 @@ const listingController = {
         try {
             const { id: sellerId, role } = req.user;
 
-            if (role !== 'seller') {
-                return res.status(403).json({ message: 'Only sellers can create listings.' });
+            if (role !== 'seller' && role !== 'admin' && role !== 'broker') {
+                return res.status(403).json({ message: 'Only sellers, brokers, or admins can create listings.' });
             }
 
             // Extract text fields from req.body (parsed by multer)
@@ -41,8 +41,18 @@ const listingController = {
             };
 
             const newListing = await listingService.createListing(listingData, sellerId, req.files);
+
+            // Invalidate approved listings cache if the listing created by admin/broker is auto-approved
+            if (newListing.status === 'approved') {
+                cache.delete('approved_listings');
+            }
+
+            const successMessage = newListing.status === 'approved'
+                ? 'Listing created and published successfully.'
+                : 'Listing created successfully and is awaiting approval.';
+
             res.status(201).json({
-                message: 'Listing created successfully and is awaiting approval.',
+                message: successMessage,
                 listing: {
                     id: newListing.id,
                     title: newListing.title,
@@ -56,52 +66,6 @@ const listingController = {
             res.status(400).json({ message: error.message || 'Failed to create listing.' });
         }
     },
-
-    // createListing: async (req, res) => {
-    //     try {
-    //         // req.user is populated by authMiddleware and has id, email, role
-    //         const { id: sellerId, role } = req.user;
-
-    //         if (role !== 'seller') {
-    //             return res.status(403).json({ message: 'Only sellers can create listings.' });
-    //         }
-
-    //         const { title, description, type, category, price, locationAddressPublic, images } = req.body;
-
-    //         // Basic validation
-    //         if (!title || !description || !type || !category || !price || !locationAddressPublic) {
-    //             return res.status(400).json({ message: 'Missing required listing fields.' });
-    //         }
-    //         if (!['house', 'car'].includes(type)) return res.status(400).json({ message: 'Invalid listing type.' });
-    //         if (!['for_sale', 'for_rent'].includes(category)) return res.status(400).json({ message: 'Invalid listing category.' });
-    //         if (isNaN(parseFloat(price))) return res.status(400).json({ message: 'Price must be a number.' });
-
-
-    //         const listingData = {
-    //             title,
-    //             description,
-    //             type,
-    //             category,
-    //             price: parseFloat(price),
-    //             locationAddressPublic,
-    //             images: images || [],
-    //         };
-
-    //         const newListing = await listingService.createListing(listingData, sellerId);
-    //         res.status(201).json({
-    //             message: 'Listing created successfully and is awaiting approval.',
-    //             listing: {
-    //                 id: newListing.id,
-    //                 title: newListing.title,
-    //                 status: newListing.status,
-    //                 createdAt: newListing.createdAt,
-    //             },
-    //         });
-    //     } catch (error) {
-    //         console.error('Error creating listing:', error);
-    //         res.status(400).json({ message: error.message });
-    //     }
-    // },
 
     /**
      * GET /api/listings/approved
@@ -132,6 +96,7 @@ const listingController = {
     getApprovedListingById: async (req, res) => {
         try {
             const userId = req.user ? req.user.id : null;
+            const userRole = req.user ? req.user.role : null;
             const cacheKey = `approved_listing_${req.params.id}`;
             const cachedData = cache.get(cacheKey);
 
@@ -162,11 +127,13 @@ const listingController = {
 
             // Cache miss: sync flow
             await listingService.incrementListingViews(req.params.id);
-            const listing = await listingService.getApprovedListingById(req.params.id, userId);
+            const listing = await listingService.getApprovedListingById(req.params.id, userId, userRole);
 
-            // Store in cache with isFavorited = false (for general public caching)
-            const publicListing = { ...listing, isFavorited: false };
-            cache.set(cacheKey, publicListing);
+            // Store in cache with isFavorited = false (for general public caching) only if listing is approved
+            if (listing.status === 'approved') {
+                const publicListing = { ...listing, isFavorited: false };
+                cache.set(cacheKey, publicListing);
+            }
 
             res.status(200).json(listing);
         } catch (error) {
@@ -222,7 +189,7 @@ const listingController = {
                 return res.status(400).json({ message: 'New status is required.' });
             }
             const updatedListing = await listingService.updateListingStatus(req.params.id, status);
-            
+
             // Invalidate approved listings caches
             cache.delete('approved_listings');
             cache.delete(`approved_listing_${req.params.id}`);
@@ -274,6 +241,44 @@ const listingController = {
         }
     },
 
+    updateListing: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { id: userId, role } = req.user;
+
+            let retainedImages = undefined;
+            if (req.body.retainedImages !== undefined) {
+                try {
+                    retainedImages = JSON.parse(req.body.retainedImages);
+                } catch (e) {
+                    retainedImages = Array.isArray(req.body.retainedImages)
+                        ? req.body.retainedImages
+                        : [req.body.retainedImages];
+                }
+            }
+
+            const updatedListing = await listingService.updateListing(
+                id,
+                userId,
+                role,
+                req.body,
+                req.files,
+                retainedImages
+            );
+
+            // Invalidate approved listings caches
+            cache.delete('approved_listings');
+            cache.delete(`approved_listing_${id}`);
+
+            res.status(200).json({
+                message: 'Listing updated successfully.',
+                listing: updatedListing
+            });
+        } catch (error) {
+            console.error('Error updating listing:', error);
+            res.status(400).json({ message: error.message || 'Failed to update listing.' });
+        }
+    },
 };
 
 module.exports = listingController;

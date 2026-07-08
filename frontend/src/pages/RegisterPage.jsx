@@ -7,6 +7,8 @@ function RegisterPage() {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [role, setRole] = useState('customer');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [address, setAddress] = useState('');
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -18,12 +20,19 @@ function RegisterPage() {
         setSuccess(null);
         setLoading(true);
         try {
-            const response = await api.post('/auth/register', { email, password, fullName, role });
+            const payload = { email, password, fullName, role };
+            if (role === 'seller') {
+                payload.phoneNumber = phoneNumber;
+                payload.address = address;
+            }
+            const response = await api.post('/auth/register', payload);
             setSuccess(response.data.message + " You can now log in.");
             setEmail('');
             setPassword('');
             setFullName('');
             setRole('customer');
+            setPhoneNumber('');
+            setAddress('');
             setTimeout(() => navigate('/login'), 2000);
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed.');
@@ -64,6 +73,28 @@ function RegisterPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="your@email.com"
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="phoneNumber">Phone Number</label>
+                        <input
+                            type="tel"
+                            id="phoneNumber"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="+1 (555) 123-4567"
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="address">Private Address</label>
+                        <input
+                            type="text"
+                            id="address"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            placeholder="e.g. 123 Main St, Apt 4B, Beverly Hills, CA"
                             required
                         />
                     </div>

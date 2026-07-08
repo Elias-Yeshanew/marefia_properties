@@ -1,16 +1,19 @@
 import { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
+import ListingGallery from '../components/ListingGallery';
+import ListingSidebar from '../components/ListingSidebar';
+import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 
 function ListingDetailPage() {
     const { id } = useParams();
     const { user } = useContext(AuthContext);
+    const showListedBy = user && (user.role === 'admin' || user.role === 'broker');
     const [listing, setListing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeImage, setActiveImage] = useState(0);
-    const [lightboxOpen, setLightboxOpen] = useState(false);
 
     useEffect(() => {
         const fetchListing = async () => {
@@ -18,7 +21,6 @@ function ListingDetailPage() {
                 setLoading(true);
                 const response = await api.get(`/listings/approved/${id}`);
                 setListing(response.data);
-                setActiveImage(0);
                 window.scrollTo(0, 0);
             } catch (err) {
                 setError('Property not found or is no longer available.');
@@ -43,49 +45,22 @@ function ListingDetailPage() {
         }
     };
 
-    const fallbackImage = (type) =>
-        type === 'house'
-            ? 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'
-            : 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80';
-
-    const images = (listing && listing.images && listing.images.length > 0)
-        ? listing.images
-        : [fallbackImage(listing?.type)];
-
-    // Keyboard navigation for lightbox
-    useEffect(() => {
-        if (!lightboxOpen) return;
-        const handleKey = (e) => {
-            if (e.key === 'Escape') setLightboxOpen(false);
-            if (e.key === 'ArrowRight') setActiveImage(i => (i + 1) % images.length);
-            if (e.key === 'ArrowLeft') setActiveImage(i => (i - 1 + images.length) % images.length);
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [lightboxOpen, images.length]);
-
-    if (loading) return (
-        <div className="loading-screen">
-            <div className="spinner"></div>
-            <p className="loading-text">Loading Details</p>
-        </div>
-    );
+    if (loading) return <LoadingScreen text="Loading Details" />;
 
     if (error) return (
-        <div className="empty-state">
-            <div className="empty-icon">🔐</div>
-            <h3>Not Available</h3>
-            <p>{error}</p>
-            <Link to="/listings" className="btn-gold" style={{ marginTop: '20px', display: 'inline-block', textDecoration: 'none' }}>
-                Browse Listings
-            </Link>
-        </div>
+        <EmptyState
+            icon="🔐"
+            title="Not Available"
+            description={error}
+            action={
+                <Link to="/listings" className="btn-gold" style={{ marginTop: '20px', display: 'inline-block', textDecoration: 'none' }}>
+                    Browse Listings
+                </Link>
+            }
+        />
     );
 
     if (!listing) return null;
-
-    const prevImage = () => setActiveImage(i => (i - 1 + images.length) % images.length);
-    const nextImage = () => setActiveImage(i => (i + 1) % images.length);
 
     return (
         <div>
@@ -120,6 +95,32 @@ function ListingDetailPage() {
                     </p>
                 </div>
 
+                {/* Edit listing: only for owner or admin */}
+                {user && (user.role === 'admin' || user.id === listing.sellerId) && (
+                    <Link
+                        to={`/listings/edit/${listing.id}`}
+                        style={{
+                            background: 'rgba(201,168,76,0.12)',
+                            border: '1px solid rgba(201,168,76,0.4)',
+                            borderRadius: '50%',
+                            width: '48px',
+                            height: '48px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontSize: '1.2rem',
+                            color: 'var(--gold)',
+                            transition: 'all 0.2s ease',
+                            textDecoration: 'none',
+                            boxShadow: 'var(--shadow-deep)',
+                        }}
+                        title="Edit Listing"
+                    >
+                        ✏️
+                    </Link>
+                )}
+
                 {user && (
                     <button
                         onClick={handleToggleFavorite}
@@ -151,44 +152,7 @@ function ListingDetailPage() {
 
                 {/* ── LEFT: GALLERY + DESCRIPTION ── */}
                 <div className="detail-main">
-
-                    {/* MAIN IMAGE */}
-                    <div className="gallery-main-wrapper" onClick={() => setLightboxOpen(true)}>
-                        <img
-                            src={images[activeImage]}
-                            alt={`${listing.title} — view ${activeImage + 1}`}
-                            className="gallery-main-img"
-                            onError={(e) => { e.target.src = fallbackImage(listing.type); }}
-                        />
-                        {images.length > 1 && (
-                            <>
-                                <button className="gallery-arrow gallery-arrow-left" onClick={(e) => { e.stopPropagation(); prevImage(); }} aria-label="Previous">‹</button>
-                                <button className="gallery-arrow gallery-arrow-right" onClick={(e) => { e.stopPropagation(); nextImage(); }} aria-label="Next">›</button>
-                                <div className="gallery-count">{activeImage + 1} / {images.length}</div>
-                            </>
-                        )}
-                        <div className="gallery-zoom-hint">🔍 Click to enlarge</div>
-                    </div>
-
-                    {/* THUMBNAILS */}
-                    {images.length > 1 && (
-                        <div className="gallery-thumbs">
-                            {images.map((img, idx) => (
-                                <button
-                                    key={idx}
-                                    className={`gallery-thumb${idx === activeImage ? ' gallery-thumb-active' : ''}`}
-                                    onClick={() => setActiveImage(idx)}
-                                    aria-label={`View image ${idx + 1}`}
-                                >
-                                    <img
-                                        src={img}
-                                        alt={`Thumbnail ${idx + 1}`}
-                                        onError={(e) => { e.target.src = fallbackImage(listing.type); }}
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <ListingGallery images={listing.images} type={listing.type} title={listing.title} />
 
                     {/* DESCRIPTION */}
                     <div style={{ marginTop: '48px' }}>
@@ -221,11 +185,13 @@ function ListingDetailPage() {
                                 <span className="fact-label">Location</span>
                                 <span className="fact-value">{listing.locationAddressPublic}</span>
                             </div>
-                            <div className="detail-fact">
-                                <span className="fact-icon">👤</span>
-                                <span className="fact-label">Listed By</span>
-                                <span className="fact-value">{listing.seller ? listing.seller.fullName : 'Marefia Properties'}</span>
-                            </div>
+                            {showListedBy && (
+                                <div className="detail-fact">
+                                    <span className="fact-icon">👤</span>
+                                    <span className="fact-label">Listed By</span>
+                                    <span className="fact-value">{listing.seller ? listing.seller.fullName : 'Marefia Properties'}</span>
+                                </div>
+                            )}
                             {listing.createdAt && (
                                 <div className="detail-fact">
                                     <span className="fact-icon">📅</span>
@@ -236,7 +202,7 @@ function ListingDetailPage() {
                             <div className="detail-fact">
                                 <span className="fact-icon">🖼️</span>
                                 <span className="fact-label">Photos</span>
-                                <span className="fact-value">{images.length} image{images.length !== 1 ? 's' : ''}</span>
+                                <span className="fact-value">{(listing.images || []).length} image{(listing.images || []).length !== 1 ? 's' : ''}</span>
                             </div>
                             <div className="detail-fact">
                                 <span className="fact-icon">👁️</span>
@@ -248,94 +214,8 @@ function ListingDetailPage() {
                 </div>
 
                 {/* ── RIGHT: STICKY SIDEBAR ── */}
-                <div className="detail-sidebar-wrapper">
-                    <div className="detail-sidebar">
-
-                        {/* PRICE */}
-                        <div style={{ marginBottom: '28px', paddingBottom: '28px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                            <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                                {listing.category === 'for_sale' ? 'Asking Price' : 'Monthly Rate'}
-                            </span>
-                            <span className="listing-price" style={{ fontSize: '2.2rem', display: 'block', margin: 0 }}>
-                                ${parseFloat(listing.price).toLocaleString()}
-                                {listing.category === 'for_rent' && (
-                                    <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 400 }}> / mo</span>
-                                )}
-                            </span>
-                        </div>
-
-                        {/* QUICK FACTS */}
-                        <div className="detail-info" style={{ margin: '0 0 28px 0' }}>
-                            <dl>
-                                <div>
-                                    <dt>Category</dt>
-                                    <dd>{listing.category === 'for_sale' ? 'Acquisition' : 'Leasing'}</dd>
-                                </div>
-                                <div>
-                                    <dt>Asset Class</dt>
-                                    <dd style={{ textTransform: 'capitalize' }}>{listing.type}</dd>
-                                </div>
-                                <div>
-                                    <dt>Status</dt>
-                                    <dd style={{ color: '#4ade80' }}>Available</dd>
-                                </div>
-                                <div>
-                                    <dt>Listed By</dt>
-                                    <dd>{listing.seller ? listing.seller.fullName : 'Marefia'}</dd>
-                                </div>
-                            </dl>
-                        </div>
-
-                        {/* CTA BUTTONS */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <button
-                                className="btn-gold"
-                                style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '0.9rem' }}
-                                onClick={() => alert('An inquiry form or contact modal would open here.')}
-                            >
-                                Inquire Now
-                            </button>
-                            <button
-                                className="btn-ghost"
-                                style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '0.85rem' }}
-                                onClick={() => alert('Schedule a private viewing.')}
-                            >
-                                Schedule Viewing
-                            </button>
-                        </div>
-
-                        {/* TRUST NOTE */}
-                        <p style={{ marginTop: '20px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.6' }}>
-                            🔒 All transactions are handled with full discretion and legal escrow support.
-                        </p>
-                    </div>
-                </div>
+                <ListingSidebar listing={listing} />
             </div>
-
-            {/* ── LIGHTBOX ── */}
-            {lightboxOpen && (
-                <div
-                    className="lightbox-overlay"
-                    onClick={() => setLightboxOpen(false)}
-                >
-                    <div className="lightbox-inner" onClick={(e) => e.stopPropagation()}>
-                        <button className="lightbox-close" onClick={() => setLightboxOpen(false)}>✕</button>
-                        <img
-                            src={images[activeImage]}
-                            alt={`${listing.title} — full view`}
-                            className="lightbox-img"
-                            onError={(e) => { e.target.src = fallbackImage(listing.type); }}
-                        />
-                        {images.length > 1 && (
-                            <>
-                                <button className="lightbox-arrow lightbox-arrow-left" onClick={prevImage}>‹</button>
-                                <button className="lightbox-arrow lightbox-arrow-right" onClick={nextImage}>›</button>
-                                <div className="lightbox-count">{activeImage + 1} / {images.length}</div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

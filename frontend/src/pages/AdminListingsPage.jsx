@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
+import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 
 function AdminListingsPage() {
     const [listings, setListings] = useState([]);
@@ -56,12 +59,7 @@ function AdminListingsPage() {
         }
     };
 
-    if (loading) return (
-        <div className="loading-screen">
-            <div className="spinner"></div>
-            <p className="loading-text">Loading Dashboard</p>
-        </div>
-    );
+    if (loading) return <LoadingScreen text="Loading Dashboard" />;
 
     if (error) return <p className="alert alert-danger">{error}</p>;
 
@@ -78,11 +76,11 @@ function AdminListingsPage() {
             {statusUpdateError && <p className="alert alert-danger">{statusUpdateError}</p>}
 
             {listings.length === 0 ? (
-                <div className="empty-state">
-                    <div className="empty-icon">🗄️</div>
-                    <h3>System is Empty</h3>
-                    <p>No properties have been submitted to the platform yet.</p>
-                </div>
+                <EmptyState
+                    icon="🗄️"
+                    title="System is Empty"
+                    description="No properties have been submitted to the platform yet."
+                />
             ) : (
                 <div className="admin-grid">
                     {listings.map((listing) => (
@@ -199,6 +197,13 @@ function AdminListingsPage() {
                                 Mark as Sold/Rented
                             </button>
                         )}
+                        <Link
+                            to={`/listings/edit/${selectedListing.id}`}
+                            className="btn-ghost"
+                            style={{ borderColor: 'rgba(201,168,76,0.4)', color: 'var(--gold)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            ✏️ Edit Listing
+                        </Link>
                         <button className="btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => {
                             setSelectedListing(null);
                             window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -8,7 +8,7 @@ const authController = {
      */
     register: async (req, res) => {
         try {
-            const { email, password, fullName, role } = req.body;
+            const { email, password, fullName, role, phoneNumber, address } = req.body;
 
             // Basic validation
             if (!email || !password || !fullName || !role) {
@@ -20,7 +20,7 @@ const authController = {
                 return res.status(400).json({ message: 'Invalid role specified.' });
             }
 
-            const newUser = await authService.registerUser(email, password, fullName, role);
+            const newUser = await authService.registerUser(email, password, fullName, role, phoneNumber, address);
             res.status(201).json({
                 message: 'User registered successfully!',
                 user: {
@@ -28,6 +28,8 @@ const authController = {
                     email: newUser.email,
                     fullName: newUser.fullName,
                     role: newUser.role,
+                    phoneNumber: newUser.phoneNumber,
+                    address: newUser.address,
                 },
             });
         } catch (error) {
