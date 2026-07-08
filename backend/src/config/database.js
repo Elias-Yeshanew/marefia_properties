@@ -41,12 +41,27 @@ const connectDB = async () => {
         require('../models/User');
         require('../models/Listing');
         require('../models/Favorite');
+        require('../models/Inquiry');
 
         // Manually add any new columns that alter:true struggles with on first run
         await sequelize.query(`
             ALTER TABLE "Listings"
             ADD COLUMN IF NOT EXISTS "locationAddressPublic" VARCHAR(255);
         `).catch(() => {}); // Silently ignore if the table doesn't exist yet (first run)
+
+        // Pre-create ENUM types for Inquiry table (prevents alter:true conflicts)
+        await sequelize.query(`
+            DO $$ BEGIN
+                CREATE TYPE "enum_Inquiries_type" AS ENUM ('inquiry', 'viewing');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        `).catch(() => {});
+        await sequelize.query(`
+            DO $$ BEGIN
+                CREATE TYPE "enum_Inquiries_status" AS ENUM ('new', 'read', 'responded');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        `).catch(() => {});
 
         // Synchronize database schema changes automatically
         await sequelize.sync({ alter: true });
