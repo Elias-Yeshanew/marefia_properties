@@ -42,6 +42,12 @@ const connectDB = async () => {
         require('../models/Listing');
         require('../models/Favorite');
 
+        // Manually add any new columns that alter:true struggles with on first run
+        await sequelize.query(`
+            ALTER TABLE "Listings"
+            ADD COLUMN IF NOT EXISTS "locationAddressPublic" VARCHAR(255);
+        `).catch(() => {}); // Silently ignore if the table doesn't exist yet (first run)
+
         // Synchronize database schema changes automatically
         await sequelize.sync({ alter: true });
         console.log('Database schema synchronized successfully.');
