@@ -121,7 +121,7 @@ function InquiryModal({ listing, initialTab = 'inquiry', onClose }) {
                         <p>
                             {tab === 'viewing'
                                 ? `Your viewing request for ${form.preferredDate} at ${form.preferredTime} has been received. Our team will confirm shortly.`
-                                : 'We've received your message and will get back to you as soon as possible.'}
+                                : "We've received your message and will get back to you as soon as possible."}
                         </p>
                         <button
                             className="btn-ghost"
@@ -217,7 +217,7 @@ function InquiryModal({ listing, initialTab = 'inquiry', onClose }) {
                                 placeholder={
                                     tab === 'viewing'
                                         ? 'Any special requests or access requirements…'
-                                        : 'Tell us what you'd like to know about this listing…'
+                                        : "Tell us what you'd like to know about this listing…"
                                 }
                                 value={form.message}
                                 onChange={handleChange}
